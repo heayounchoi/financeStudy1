@@ -51,3 +51,114 @@ chart_Series(DGS10)
 getSymbols('DEXKOUS', src='FRED')
 
 tail(DEXKOUS)
+
+# 크롤링(GET)
+library(rvest)
+library(httr)
+
+url = 'https://finance.naver.com/news/news_list.naver?mode=LSS2D&section_id=101&section_id2=258'
+data = GET(url)
+
+data_title = data %>%
+  read_html(encoding = 'EUC-KR') %>%
+  html_nodes('.articleSubject') %>%
+  html_nodes('a') %>%
+  html_attr('title') 
+
+print(data_title)
+
+# 크롤링(POST)
+Sys.setlocale("LC_ALL", "English")
+
+url = 'https://kind.krx.co.kr/disclosure/todaydisclosure.do'
+data = POST(url, body = 
+              list(
+                method = 'searchTodayDisclosureSub',
+                currentPageSize = '15',
+                pageIndex = '1',
+                orderMode = '0',
+                orderStat = 'D',
+                forward = 'todaydisclosure_sub',
+                chose = 'S',
+                todayFlag = 'Y',
+                selDate = '2023-02-23'
+              ))
+
+data = read_html(data) %>%
+  html_table() %>%
+  .[[1]]
+
+Sys.setlocale("LC_ALL", "Korean")
+
+print(head(data))
+
+# 크롤링 예제
+library(stringr)
+
+i = 0 # 코스피(1은 코스닥)
+j = 1 # 첫번째 페이지
+data = list()
+
+for (i in 0:1) {
+  ticker = list()
+  
+  url = paste0('https://finance.naver.com/sise/',
+             'sise_market_sum.naver?sosok=',i,'&page=1')
+  down_table = GET(url)
+
+  navi.final = read_html(down_table, encoding = 'EUC-KR') %>%
+    html_nodes(., '.pgRR') %>%
+    html_nodes(., 'a') %>%
+    html_attr(., 'href')
+
+  navi.final = navi.final %>%
+    strsplit(., '=') %>%
+    unlist() %>%
+    tail(., 1) %>%
+    as.numeric()
+
+  for (j in 1:navi.final) {
+
+    url = paste0(
+      'https://finance.naver.com/sise/',
+      'sise_market_sum.naver?sosok=',i,'&page=',j)
+    down_table = GET(url)
+    
+    Sys.setlocale("LC_ALL", "English")
+
+    table = read_html(down_table, encoding = "EUC-KR") %>%
+      html_table()
+    table = table[[2]]
+
+    Sys.setlocale("LC_ALL", "Korean")
+
+    table[, ncol(table)] = NULL
+    table = na.omit(table)
+
+    symbol = read_html(down_table, encoding = 'EUC-KR') %>%
+      html_nodes(., '.tltle') %>%
+      html_attr(., 'href')
+
+    symbol = sapply(symbol, function(x) {
+      str_sub(x, -6, -1) 
+    })
+
+    symbol = unique(symbol)
+
+    table$N = symbol
+
+    colnames(table)[1] = '종목코드'
+    rownames(table) = NULL
+
+    ticker[[j]] = table
+
+    Sys.sleep(0.5)
+  }
+
+  ticker = do.call(rbind, ticker)
+
+  data[[i + 1]] = ticker
+}
+
+data = do.call(rbind, data)
+
