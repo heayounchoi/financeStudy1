@@ -214,3 +214,30 @@ down_sector = rbind(down_sector_KS, down_sector_KQ)
 
 ifelse(dir.exists('data'), FALSE, dir.create('data'))
 write.csv(down_sector, 'data/krx_sector.csv')
+
+# 한국거래소 개별지표 크롤링
+gen_otp_url =
+  'http://data.krx.co.kr/comm/fileDn/GenerateOTP/generate.cmd'
+
+gen_otp_data = list(
+  searchType = '1',
+  mktId = 'ALL',
+  trdDd = '20230223',
+  csvxls_isNo = 'false',
+  name = 'fileDown',
+  url = 'dbms/MDC/STAT/standard/MDCSTAT03501'
+)
+
+otp = POST(gen_otp_url, query = gen_otp_data) %>%
+  read_html() %>%
+  html_text()
+
+down_url = 'http://data.krx.co.kr/comm/fileDn/download_csv/download.cmd'
+
+down_ind = POST(down_url, query = list(code = otp),
+                add_headers(referer = gen_otp_url)) %>%
+  read_html(encoding = 'EUC-KR') %>%
+  html_text() %>%
+  read_csv()
+
+write.csv(down_ind, 'data/krx_ind.csv')
