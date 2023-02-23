@@ -42,3 +42,12 @@ tail(Ad(`005930.KS`))
 
 # 국내 종목의 경우 수정주가에 오류가 발생하는 경우가 많으니 단순 종가 사용 권장
 tail(Cl(`005930.KS`))
+
+# FRED 데이터 불러오기
+getSymbols('DGS10', src='FRED')
+
+chart_Series(DGS10)
+
+getSymbols('DEXKOUS', src='FRED')
+
+tail(DEXKOUS)
