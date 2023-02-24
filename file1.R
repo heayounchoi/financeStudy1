@@ -281,3 +281,33 @@ KOR_ticker = KOR_ticker[str_sub(KOR_ticker[, '종목코드'], -1, -1) == 0, ]
 rownames(KOR_ticker) = NULL
 
 write.csv(KOR_ticker, 'data/KOR_ticker.csv')
+
+# WICS 기준 섹터정보 크롤링
+library(jsonlite)
+
+url = 'https://www.wiseindex.com/Index/GetIndexComponets?ceil_yn=0&dt=20230223&sec_cd=G10'
+data = fromJSON(url)
+
+lapply(data, head)
+
+sector_code = data$sector$SEC_CD
+
+data_sector = list()
+
+for (i in sector_code) {
+  
+  url = paste0(
+    'http://www.wiseindex.com/Index/GetIndexComponets',
+    '?ceil_yn=0&dt=',biz_day,'&sec_cd=',i)
+  data = fromJSON(url)
+  data = data$list
+  
+  data_sector[[i]] = data
+  
+  Sys.sleep(1)
+}
+
+data_sector = do.call(rbind, data_sector)
+
+write.csv(data_sector, 'data/KOR_sector.csv')
+
