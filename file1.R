@@ -253,6 +253,31 @@ down_ind = POST(down_url, query = list(code = otp),
 
 write.csv(down_ind, 'data/krx_ind.csv')
 
+# 한국거래소 산업별 현황, 개별 지표 데이터 합치기
+down_sector = read.csv('data/krx_sector.csv', row.names = 1,
+                       stringsAsFactors = FALSE)
+down_ind = read.csv('data/krx_ind.csv',  row.names = 1,
+                    stringsAsFactors = FALSE)
 
+intersect(names(down_sector), names(down_ind))
 
+setdiff(down_sector[, '종목명'], down_ind[ ,'종목명'])
 
+KOR_ticker = merge(down_sector, down_ind,
+                   by = intersect(names(down_sector),
+                                  names(down_ind)),
+                   all = FALSE # TRUE = 합집합 반환, FALSE = 교집합 반환
+)
+
+KOR_ticker = KOR_ticker[order(-KOR_ticker['시가총액']), ]
+
+KOR_ticker[grepl('스팩', KOR_ticker[, '종목명']), '종목명']  
+
+KOR_ticker[str_sub(KOR_ticker[, '종목코드'], -1, -1) != 0, '종목명']
+
+KOR_ticker = KOR_ticker[!grepl('스팩', KOR_ticker[, '종목명']), ]  
+KOR_ticker = KOR_ticker[str_sub(KOR_ticker[, '종목코드'], -1, -1) == 0, ]
+
+rownames(KOR_ticker) = NULL
+
+write.csv(KOR_ticker, 'data/KOR_ticker.csv')
