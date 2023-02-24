@@ -162,17 +162,28 @@ for (i in 0:1) {
 
 data = do.call(rbind, data)
 
-# 한국거래소 산업별 현황 크롤링
 library(httr)
 library(rvest)
 library(readr)
 
+# 네이버 증권에서 최근 영업일 가져오기
+url = 'https://finance.naver.com/sise/sise_deposit.naver'
+
+biz_day = GET(url) %>%
+  read_html(encoding = 'EUC-KR') %>%
+  html_nodes(xpath =
+               '//*[@id="type_0"]/div/ul[2]/li/span') %>%
+  html_text() %>%
+  str_match(('[0-9]+.[0-9]+.[0-9]+') ) %>%
+  str_replace_all('\\.', '')
+
+# 한국거래소 산업별 현황 크롤링
 gen_otp_url =
   'http://data.krx.co.kr/comm/fileDn/GenerateOTP/generate.cmd'
 
 gen_otp_data = list(
   mktId = 'STK',
-  trdDd = '20230223',
+  trdDd = biz_day,
   money = '1',
   csvxls_isNo = 'false',
   name = 'fileDown',
@@ -193,7 +204,7 @@ down_sector_KS = POST(down_url, query = list(code = otp),
 
 gen_otp_data = list(
   mktId = 'KSQ', 
-  trdDd = '20230223',
+  trdDd = biz_day,
   money = '1',
   csvxls_isNo = 'false',
   name = 'fileDown',
@@ -222,7 +233,7 @@ gen_otp_url =
 gen_otp_data = list(
   searchType = '1',
   mktId = 'ALL',
-  trdDd = '20230223',
+  trdDd = biz_day,
   csvxls_isNo = 'false',
   name = 'fileDown',
   url = 'dbms/MDC/STAT/standard/MDCSTAT03501'
@@ -241,3 +252,7 @@ down_ind = POST(down_url, query = list(code = otp),
   read_csv()
 
 write.csv(down_ind, 'data/krx_ind.csv')
+
+
+
+
