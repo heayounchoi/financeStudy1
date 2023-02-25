@@ -311,7 +311,11 @@ data_sector = do.call(rbind, data_sector)
 
 write.csv(data_sector, 'data/KOR_sector.csv')
 
-# 개별종목 수정주가 크롤링
+# 전 종목 수정주가 크롤링
+# 오래 걸리니까 나중에 다운받기
+library(lubridate)
+library(timetk)
+
 KOR_ticker = read.csv('data/KOR_ticker.csv', row.names = 1)
 
 KOR_ticker$'종목코드' =
@@ -320,38 +324,43 @@ KOR_ticker$'종목코드' =
 ifelse(dir.exists('data/KOR_price'), FALSE,
        dir.create('data/KOR_price'))
 
-i = 1
-name = KOR_ticker$'종목코드'[i]
+for(i in 1 : nrow(KOR_ticker) ) {
+  name = KOR_ticker$'종목코드'[i]
 
-price = xts(NA, order.by = Sys.Date())
+  price = xts(NA, order.by = Sys.Date())
 
-library(lubridate)
+  from = (Sys.Date() - years(3)) %>% str_remove_all('-')
+  to = Sys.Date() %>% str_remove_all('-')
 
-from = (Sys.Date() - years(3)) %>% str_remove_all('-')
-to = Sys.Date() %>% str_remove_all('-')
-
-url = paste0('https://api.finance.naver.com/siseJson.naver?symbol=', name,
+  tryCatch({
+    url = paste0('https://api.finance.naver.com/siseJson.naver?symbol=', name,
              '&requestType=1&startTime=', from, '&endTime=', to, '&timeframe=day')
+  
+    data = GET(url)
 
-data = GET(url)
+    data_html = data %>% read_html %>%
+      html_text() %>%
+      read_csv()
 
-data_html = data %>% read_html %>%
-  html_text() %>%
-  read_csv()
+    price = data_html[c(1, 5)]
 
-library(timetk)
+    colnames(price) = (c('Date', 'Price'))
 
-price = data_html[c(1, 5)]
+    price = na.omit(price)
 
-colnames(price) = (c('Date', 'Price'))
+    price$Date = parse_number(price$Date)
 
-price = na.omit(price)
+    price$Date = ymd(price$Date)
 
-price$Date = parse_number(price$Date)
+    price = tk_xts(price, date_var = Date)
+    
+  }, error = function(e) {
+    warning(paste0("Error in Ticker: ", name))
+  })
+  
+  write.csv(data.frame(price),
+            paste0('data/KOR_price/', name, '_price.csv'))
+  
+  Sys.sleep(2)
+}
 
-price$Date = ymd(price$Date)
-
-price = tk_xts(price, date_var = Date)
-
-write.csv(data.frame(price),
-          paste0('data/KOR_price/', name, '_price.csv'))
